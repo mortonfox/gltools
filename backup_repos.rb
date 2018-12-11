@@ -7,13 +7,22 @@ require 'rest-client'
 require 'fileutils'
 require 'json'
 require 'English'
+require 'logger'
 require 'shellwords'
 
 REPOS_FOLDER = './repos'
 TOKEN_FILE = File.join(ENV['HOME'], '.gltools.token')
 
+LOGGER = Logger.new($stdout)
+LOGGER.progname = File.basename($PROGRAM_NAME)
+LOGGER.level = $DEBUG ? Logger::DEBUG : Logger::INFO
+
+ERRLOGGER = Logger.new($stderr)
+ERRLOGGER.progname = File.basename($PROGRAM_NAME)
+ERRLOGGER.level = $DEBUG ? Logger::DEBUG : Logger::INFO
+
 def backup_repo name, url
-  puts "Backing up repo '#{name}'..."
+  LOGGER.info "Backing up repo '#{name}'..."
 
   # Find a subfolder name that does not already exist.
   subfolder = name
@@ -27,19 +36,19 @@ def backup_repo name, url
 
   cmd = ['git', 'clone', url, subfolder].shelljoin
   unless system(cmd)
-    warn "git clone failed for url #{url}, subfolder #{subfolder}: exit code #{$CHILD_STATUS}"
+    ERRLOGGER.error "git clone failed for url #{url}, subfolder #{subfolder}: exit code #{$CHILD_STATUS}"
     return
   end
 
   cmd = ['git', '-C', subfolder, 'bundle', 'create', "../#{subfolder}.bundle", '--all'].shelljoin
   unless system(cmd)
-    warn "git bundle failed for subfolder #{subfolder}: exit code #{$CHILD_STATUS}"
+    ERRLOGGER.error "git bundle failed for subfolder #{subfolder}: exit code #{$CHILD_STATUS}"
     got_warning = true
   end
 
   cmd = ['git', '-C', subfolder, 'archive', '--format', 'zip', '--prefix', "#{subfolder}/", '-9', '-o', "../#{subfolder}.zip", 'HEAD'].shelljoin
   unless system(cmd)
-    warn "git archive failed for subfolder #{subfolder}: exit code #{$CHILD_STATUS}"
+    ERRLOGGER.error "git archive failed for subfolder #{subfolder}: exit code #{$CHILD_STATUS}"
     got_warning = true
   end
 
